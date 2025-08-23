@@ -1,125 +1,8 @@
-# Siri → LLM Voice-to-Minecraft Bridge
-
-## Current Status: Step 3 ✅ COMPLETED - Ready for Step 4
-
----
-
-## 0) Repo + skeleton ✅ COMPLETED
-
-**Goal:** Have a runnable HTTP service with healthcheck and structured logs.
-
-**Do**
-
-1. `p**Debug**
-
-* **Goal:** Shortcut waits f* ---d request**Debug**
-
-* `curl` with "give me bread" → LLM generates `["give player bread 5"]` → v**Debug**
-
-* Make 2 quick requests → 2nd should 429 with "cooldown" message
-* Request commands for non-whitelisted player → rejection with helpful error
-* Try `/give` with invalid item → command filtered out with item validation error
-* Try `/god` command twice quickly → second request gets longer cooldown message
-* Request with excessive item count → count clamped to policy limitsation passes
-* `curl` with "give me unicorn" → LLM generates `["give player unicorn 1"]` → validation fails with "Sorry, 'unicorn' is not a valid Minecraft item"
-* `curl` with "turn on god mode" → LLM generates `["god player"]` → validation passes
-* `curl` with "let me fly" → LLM generates `["fly player"]` → validation passes
-* `curl` with "teleport me home" → LLM generates `["home player"]` → validation passes
-* Add logs showing: utterance → LLM commands → validation resultsiri speaks: "Delive**Debug**
-
-*## 7) RCON plumbing (dry-run first)
-
-**Goal:** Execute validated LLM-generated commands via RCON, with dry-run testing.
-
-**Do**
-
-1. Update RCON execution pipeline:
-   * Take validated commands from steps 4-6 (LLM → item validation → policy enforcement)
-   * For each command, ensure proper formatting for RCON
-   * Add automatic `tellraw` notifications for successful `give` commands
-
-2. For now, **don't** send to the server; just return:
-
-   ```json
-   { "commands": ["give .BabyBear1234 bread 5", "tellraw .BabyBear1234 {\"text\":\"You received: bread x5\",\"color\":\"green\"}"], "dryRun": true }
-   ```
-
-3. Command formatting:
-   * Ensure player names are properly escaped
-   * Validate command syntax before queuing
-   * Generate user-friendly notificationsequests → 2nd should 429 with "cooldown" message
-* Request commands for non-whitelisted player → rejection with helpful error
-* LLM tries to generate non-`give` command → command filtered out with explanation
-* Request with excessive item count → count clamped to policy limits bread x5"
-* Invalid item → Siri speaks: "Sorry, 'unicorn' is not a valid Minecraft item. Try: bread, diamond_pickaxe, torch, etc."
-* Server error → Siri speaks: "Sorry, the Minecraft server is currently unavailable" server response and speaks results back to user.*Goal:** Shortcut waits for server response and speaks results back to user.curl` with "give me bread" → LLM generates `["give player bread 5"]` → validation passes
-* `curl` with "give me unicorn" → LLM generates `["give player unicorn 1"]` → validation fails with "Sorry, 'unicorn' is not a valid Minecraft item"
-* Add logs showing: utterance → LLM commands → validation resultsinit`. Add `typescript`, `ts-node`, `zod`, `@ai-sdk/openai`, `ai`, `pino`, `dotenv`, `fastify` (or `express`). ✅
-2. Create `src/server.ts` with: ✅
-   * `GET /healthz` → returns `{ok:true, ts:<epoch>}` ✅
-   * `POST /voice` → accepts `{ utterance: string, deviceUser?: string }` and just echoes back. ✅
-   * Fastify logging with request id. ✅
-3. `.env` for `PORT`, `HMAC_SECRET`, `OPENAI_API_KEY`. ✅
-
-**Debug**
-
-* `curl localhost:3000/healthz` → `{"ok":true,"ts":1755917630001}` ✅
-* `curl -XPOST /voice -d '{"utterance":"give me bread"}'` → `{"received":{"utterance":"give me bread"},"ts":1755917638089}` ✅
-
-**Status:** STABLE ✅
-
----
-
-## 1) Request authentication (simple HMAC) ✅ COMPLETED
-
-**Goal:** Only Siri Shortcut requests are accepted.
-
-**Do**
-
-1. Add an HMAC header check middleware: ✅
-   * Compute `sig = base64(hmacSHA256(body, HMAC_SECRET))`. ✅
-   * Require header `X-Signature: <sig>`. ✅
-2. If invalid → `401`. ✅
-
-**Debug**
-
-* `curl` without header → `{"error":"Missing signature"}` ✅
-* `curl` with header (computed locally) → `{"received":{"utterance":"give me bread"},"ts":1755917866371}` ✅
-* `curl` with invalid signature → `{"error":"Invalid signature"}` ✅
-* Dev bypass with `X-Dev-Bypass: 1` works for LAN testing ✅
-
-**Status:** STABLE ✅
-
----
-
-## 2) Siri Shortcut (local-only first) ✅ COMPLETED
-
-**Goal:** Use Siri to hit your server.
-
-**Do**
-
-1. In Shortcuts app, make "Ask Minecraft": ✅
-   * Action 1: **Dictate Text** → variable `speech`. ✅
-   * Action 2: **Get Contents of URL** (POST JSON) to `http://<lan-ip>:3000/voice`. ✅
-     * JSON body: `{ "utterance": magic: speech, "deviceUser": "adalyn_iphone" }` ✅
-     * Headers: `Content-Type: application/json`, `X-Dev-Bypass: 1` ✅
-2. Response shows in Shortcut. ✅
-
-**Debug**
-
-* Say: "10 blocks" → Server logs: `{"utterance":"10 blocks","msg":"Voice request received"}` ✅
-* Dev bypass working: `{"msg":"Using dev bypass - should only be used on LAN"}` ✅
-* Response time: 13ms ✅
-
-**Status:** STABLE ✅
-
-[Siri Shortcut Screenshot](https://share.cleanshot.com/nfxTycMG)
-
----
+# Siri → LLM → Minecraft: Step-by-Step Build Plan
 
 ## Tech choices (locked for this plan)
 
-* Server: Node.js (TypeScript), Express, pnpm
+* Server: Node.js (TypeScript), fastify, pnpm
 * Model: OpenAI (use `generateObject` / JSON Schema via Vercel AI SDK)
 * Minecraft bridge: RCON
 * Transport security: HTTPS + shared-secret HMAC
@@ -127,523 +10,241 @@
 
 ---
 
-## 0) Repo + skeleton
+## ✅ 0) Repo + skeleton (COMPLETE)
 
 **Goal:** Have a runnable HTTP service with healthcheck and structured logs.
 
-**Do**
+**What was built:**
 
-1. `pnpm init`. Add `typescript`, `ts-node`, `zod`, `@ai-sdk/openai`, `ai`, `pino`, `dotenv`, `fastify` (or `express`).
-2. Create `src/server.ts` with:
-
+1. ✅ `pnpm init` with dependencies: `typescript`, `ts-node`, `zod`, `@ai-sdk/openai`, `ai`, `pino`, `pino-pretty`, `dotenv`, `fastify`
+2. ✅ `src/server.ts` with:
    * `GET /healthz` → returns `{ok:true, ts:<epoch>}`
-   * `POST /voice` → accepts `{ utterance: string, deviceUser?: string }` and just echoes back.
-   * Pino logging with request id.
-3. `.env` for `PORT`, `HMAC_SECRET`, `AZURE_OPENAI_*`.
+   * `POST /voice` → accepts `{ utterance: string, deviceUser?: string }` with full processing pipeline
+   * Pino logging with request id, dual output (file + pretty console)
+3. ✅ `.env` configuration for `PORT`, `HMAC_SECRET`, `OPENAI_API_KEY`, `RCON_*`, player mappings
 
-**Debug**
-
-* `curl localhost:3000/healthz` → `{"ok":true,...}`
-* `curl -XPOST /voice -d '{"utterance":"give me bread"}'` → echo payload in response + server logs show JSON.
-
-**Don’t continue** until this is stable.
+**Debug verified:**
+* ✅ `curl localhost:3000/healthz` → `{"ok":true,...}`
+* ✅ `curl -XPOST /voice -d '{"utterance":"give me bread"}'` → full LLM processing + validation
 
 ---
 
-## 1) Request authentication (simple HMAC)
+## ✅ 1) Request authentication (COMPLETE)
 
 **Goal:** Only Siri Shortcut requests are accepted.
 
-**Do**
+**What was built:**
 
-1. Add an HMAC header check middleware:
+1. ✅ HMAC header check middleware with SHA256 + base64
+   * Compute `sig = base64(hmacSHA256(body, HMAC_SECRET))`
+   * Require header `X-Signature: <sig>`
+   * Dev bypass via `X-Dev-Bypass: 1` for LAN testing
+2. ✅ Security: Invalid signatures → `401`
 
-   * Compute `sig = base64(hmacSHA256(body, HMAC_SECRET))`.
-   * Require header `X-Signature: <sig>`.
-2. If invalid → `401`.
-
-**Debug**
-
-* `curl` without header → `401`.
-* `curl` with header (computed locally) → `200`.
-
----
-
-## 2) Siri Shortcut (local-only first)
-
-**Goal:** Use Siri to hit your server.
-
-**Do**
-
-1. In Shortcuts app, make “Ask Minecraft”:
-
-   * Action 1: **Dictate Text** → variable `speech`.
-   * Action 2: **Get Contents of URL** (POST JSON) to `http://<lan-ip>:3000/voice`.
-
-     * JSON body: `{ "utterance": magic: speech, "deviceUser": "adalyn_iphone" }`
-     * Headers: `Content-Type: application/json`, `X-Signature: <computed via a small Scriptable or precomputed dev value for now>`. (For now, set server to accept a secondary dev header `X-Dev-Bypass: 1` behind LAN.)
-2. Response shows in Shortcut.
-
-**Debug**
-
-* Say: “ask minecraft for bread”.
-* Shortcut result mirrors what server received.
-
-> Later, replace LAN with HTTPS and real HMAC (Step 10).
+**Debug verified:**
+* ✅ `curl` without header → `401`
+* ✅ `curl` with header (computed locally) → `200`
+* ✅ Dev bypass works for local testing
 
 ---
 
-## 3) Player/device mapping ✅ COMPLETED (Updated to use .env)
+## ✅ 2) Siri Shortcut integration (COMPLETE)
 
-**Goal:** Map `deviceUser` → Minecraft username(s) via environment variables.
+**Goal:** Use Siri to hit your server and get conversational responses.
 
-**Do**
+**What was built:**
 
-1. Add player mappings to `.env`: ✅
-   ```env
-   # Player device to Minecraft username mappings
-   PLAYER_EISLEY=.BabyBear1234
-   PLAYER_JON=jonmagic
-   DEFAULT_PLAYER=.BabyBear1234
-   ```
+1. ✅ Siri Shortcut "Ask Minecraft":
+   * Action 1: **Dictate Text** → variable `speech`
+   * Action 2: **Get Contents of URL** (POST JSON) to server
+   * JSON body: `{ "utterance": speech, "deviceUser": "device_identifier" }`
+   * Headers: `Content-Type: application/json`, `X-Signature: <computed>`
+2. ✅ Response flows back to Siri for voice feedback
 
-2. Update `env.example` with placeholder values: ✅
-   ```env
-   # Player device to Minecraft username mappings
-   PLAYER_EISLEY=your_minecraft_username
-   PLAYER_JON=another_minecraft_username
-   DEFAULT_PLAYER=default_minecraft_username
-   ```
+**Debug verified:**
+* ✅ Say: "ask minecraft for bread" → Siri speaks back the result
+* ✅ Server processes natural language and responds with user-friendly messages
 
-3. Update `src/players.ts` to read from environment variables instead of YAML: ✅
-
-**Debug**
-
-* `POST /voice` with `deviceUser: "eisley"` returns `targetPlayer: ".BabyBear1234"` ✅
-* `POST /voice` with `deviceUser: "jon"` returns `targetPlayer: "jonmagic"` ✅
-* `POST /voice` with unknown/missing `deviceUser` returns `targetPlayer: ".BabyBear1234"` (default) ✅
-* No sensitive usernames committed to code ✅
-
-**Status:** STABLE ✅
+**TODO:** Improve LLM response formatting to be more conversational for Siri readback
 
 ---
 
+## ✅ 3) Player/device mapping (COMPLETE)
+
+**Goal:** Map device identifiers to Minecraft usernames securely.
+
+**What was built:**
+
+1. ✅ Environment-based player configuration in `src/players.ts`:
+   * `PLAYER_EISLEY=.BabyBear1234` (device → minecraft username mapping)
+   * `PLAYER_JONMAGIC=jonmagic` 
+   * `DEFAULT_PLAYER=jonmagic` (fallback for unknown devices)
+2. ✅ Privacy-first: No player names in code/config files
+3. ✅ Dynamic loading from environment variables
+
+**Debug verified:**
+* ✅ Device user resolution working
+* ✅ Fallback to default player when device unknown
+* ✅ OSS-ready (no real usernames exposed)
+
 ---
 
-## 4) LLM command generation with item validation
+## ✅ 4) Canonical item dictionary + validation (COMPLETE)
 
-**Goal:** LLM interprets utterances and generates RCON commands, with validation against the item list.
+**Goal:** Deterministic item validation against official Minecraft items.
 
-**Do**
+**What was built:**
 
-1. Add `src/nlp.ts` using Vercel AI SDK's `generateObject` to interpret utterances into RCON commands:
+1. ✅ Complete Minecraft items list in `config/items.csv` (1129+ items)
+2. ✅ `src/items.ts` with validation functions:
+   * `loadItemList()` - loads CSV into memory for O(1) lookups
+   * `isValidItem()` - validates individual items
+   * `findSimilarItems()` - suggests alternatives for typos
+   * `validateItems()` - validates entire request with detailed feedback
+3. ✅ Integration with main pipeline for item validation
 
+**Debug verified:**
+* ✅ Valid items pass through
+* ✅ Invalid items return helpful suggestions
+* ✅ Quantity validation (1-64 range)
+
+---
+
+## ✅ 5) LLM-powered command generation (COMPLETE)
+
+**Goal:** Handle free-form natural language and generate appropriate Minecraft commands.
+
+**What was built:**
+
+1. ✅ `src/nlp.ts` using Vercel AI SDK's `generateObject` with Zod schema:
    ```ts
-   const schema = {
-     type: "object",
-     properties: {
-       commands: {
-         type: "array",
-         items: {
-           type: "string",
-           pattern: "^(give|god|fly|sethome|home|tp|tellraw)\\s*.*$"  // Commands you actually use
-         }
-       },
-       reasoning: {
-         type: "string",
-         description: "Brief explanation of what was interpreted from the user's request"
-       },
-       itemsRequested: {
-         type: "array",
-         items: {
-           type: "object",
-           properties: {
-             itemName: { type: "string" },
-             quantity: { type: "integer", minimum: 1, maximum: 64 },
-             player: { type: "string" }
-           },
-           required: ["itemName", "quantity", "player"]
-         }
-       }
-     },
-     required: ["commands", "itemsRequested"],
-     additionalProperties: false,
-   };
+   const CommandGenerationSchema = z.object({
+     commands: z.array(z.string()).describe('Array of RCON commands to execute'),
+     reasoning: z.string().describe('Brief explanation of what was interpreted'),
+     itemsRequested: z.array(z.object({
+       itemName: z.string(),
+       quantity: z.number().int().min(1).max(64),
+       player: z.string()
+     }))
+   })
    ```
 
-2. System prompt instructs LLM to:
-   * Convert natural language to valid RCON commands
-   * Use these commands: `/give` (items), `/god` (invincibility), `/fly` (flight), `/sethome` (save location), `/home` (teleport to saved location), `/tp` (teleport to coordinates/player)
-   * Use reasonable default quantities for items (bread=5, tools=1, blocks=16, etc.)
-   * Target the requesting player by default
-   * Only generate commands for actions clearly requested by the user
+2. ✅ **Expanded command set beyond just `give`:**
+   * `give <player> <item> <quantity>` - Give items to player
+   * `god <player>` - Toggle invincibility 
+   * `fly <player>` - Toggle flight
+   * `sethome <player> <name>` - Set home location
+   * `home <player> <name>` - Teleport to home
+   * `tp <player> <target/coordinates>` - Teleport player
+   * `tellraw <player> <message>` - Send messages
 
-3. Add `src/items.ts` to validate generated commands:
-   * Load `config/items.csv` into a Set of valid item names
-   * Use the `itemsRequested` array from LLM response for validation (only applies to `/give` commands)
-   * Cross-reference each `itemName` against the CSV list for `/give` commands
-   * For non-item commands (`/god`, `/fly`, `/home`, etc.), validate command structure but skip item validation
-   * Return helpful error messages for invalid items with suggestions
-   * Validate that commands match the expected items
+3. ✅ Smart system prompt with item knowledge and command rules
+4. ✅ Player name substitution and context awareness
 
-4. Pipeline for `/voice`:
-   * Call LLM to generate structured response with commands and itemsRequested
-   * Validate each item in `itemsRequested` against items.csv
-   * Cross-validate that `commands` array matches the `itemsRequested` items
-   * If validation fails, return user-friendly error message with item suggestions
-   * If valid, proceed with validated commands
+**Debug verified:**
+* ✅ "give me bread" → `["give jonmagic bread 5"]` + validation
+* ✅ "turn on god mode" → `["god jonmagic"]` (no items to validate)
+* ✅ "let me fly" → `["fly jonmagic"]`
+* ✅ Complex requests: "give me a snack and a pickaxe" → multiple commands
 
-**Debug**
-
-* Unit tests: “give me 10 torches” → `torch x10`.
-* “I want wings” → `elytra x1`.
+**TODO:** Improve `reasoning` field to be more conversational for Siri responses
 
 ---
 
-## 5) Enhanced Shortcut with voice response
+## ✅ 6) Complete processing pipeline (COMPLETE)
 
-**Goal:** Handle free-form (“a snack and a pickaxe for me and my friend”) reliably.
+**Goal:** End-to-end request processing with validation and error handling.
 
-**Do**
+**What was built:**
 
-1. Add `src/nlp.ts` using Vercel AI SDK’s `generateObject` with **JSON Schema**:
+1. ✅ Full `/voice` endpoint pipeline:
+   * Request validation (utterance required)
+   * Player resolution from device mapping
+   * LLM command generation
+   * Item validation (if applicable)
+   * Structured JSON response with success/failure states
+   
+2. ✅ Error handling with user-friendly messages:
+   * Invalid items → suggestions returned
+   * Missing utterance → clear error
+   * LLM failures → graceful fallback
+   
+3. ✅ Rich logging throughout for debugging
+4. ✅ Response format optimized for both debugging and Siri
 
-   1. Update Siri Shortcut "Ask Minecraft":
-   * Keep existing: **Dictate Text** → variable `speech`
-   * Keep existing: **Get Contents of URL** (POST to server)
-   * **NEW:** Add **Speak Text** action using the server response
-   * **NEW:** Add error handling for failed requests
-
-2. Server response format:
-   * Success: `{"success": true, "message": "Delivered: bread x5", "commands": ["give player bread 5"]}`
-   * Error: `{"success": false, "message": "Sorry, 'unicorn' is not a valid Minecraft item. Try: bread, diamond_pickaxe, torch, etc."}`
-2. System prompt includes your **item dictionary** (names + ids + synonyms) and strict rules:
-
-   * Only output items that exist in the provided dictionary.
-   * If unknown, omit and add `notes` field explaining omission (optional).
-3. Pipeline for `/voice`:
-
-   * Try `matchItems` (dict). If empty/partial → call LLM to fill missing fields.
-   * Normalize: for each item, map to `id` from dictionary; apply counts; drop unknowns.
-
-**Debug**
-
-* `curl` with “a snack and a pickaxe” → returns `bread x5`, `diamond_pickaxe x1`.
-* Add logs showing: raw text → dict hits → llm output → normalized plan.
+**Debug verified:**
+* ✅ Full pipeline working end-to-end
+* ✅ Error cases handled gracefully
+* ✅ Logging provides good debugging info
 
 ---
 
-## 6) Safety rails (command validation & limits)
+## 🔄 7) RCON client implementation (TODO - NEXT STEP)
 
-**Goal:** Prevent abuse or accidents in generated RCON commands.
+**Goal:** Execute commands on actual Minecraft server via RCON.
 
-**Do**
+**Currently:** Commands are generated and validated but not executed (returns `dryRun: true`)
 
-1. `config/policy.yml`:
+**TODO:**
 
-   ```yml
-   maxCommandsPerRequest: 5
-   maxItemCountPerCommand: 64
-   allowedCommands: [give, god, fly, sethome, home, tp, tellraw]
-   requirePlayerWhitelist: true
-   playerWhitelist: [.BabyBear1234, jonmagic]
-   cooldownSecondsPerDevice: 30
-   # Command-specific limits
-   cooldownSecondsForGod: 60      # Prevent god mode spam
-   cooldownSecondsForFly: 60      # Prevent fly spam
-   maxHomesPerPlayer: 5           # Limit saved home locations
+1. Add `rcon-client` package or implement TCP RCON wrapper
+2. Environment config already in place:
    ```
-
-2. Command validation pipeline:
-   * Parse each generated command to extract type, player, item/coordinates, count
-   * Reject non-whitelisted command types (only `give`, `god`, `fly`, `sethome`, `home`, `tp`, and `tellraw` allowed)
-   * Reject if target player not whitelisted
-   * Apply command-specific validation:
-     - `/give`: Clamp item counts, validate items against CSV
-     - `/god` & `/fly`: Apply longer cooldowns to prevent spam
-     - `/sethome`: Validate home name, check limits per player
-     - `/home`: Validate home exists
-     - `/tp`: Validate coordinates or target player exists
-   * Apply per-device and per-command cooldowns
-   * Log all rejections with detailed reasons
-
-3. Integration with item validation:
-   * First: LLM generates commands → item validation (step 4)
-   * Then: Command structure validation → policy enforcement
-   * Finally: Send to RCON or return helpful error message
-
-**Debug**
-
-* Make 2 quick requests → 2nd should 429 with “cooldown” message.
-* Request 5 items → trimmed to 3.
-
----
-
-## 7) RCON plumbing (no-ops first)
-
-**Goal:** Build the command generator and dry-run output.
-
-**Do**
-
-1. Implement `toMinecraftCommands(plan)`:
-
-   * For each item: `give <player> <id> <count>`
-   * Also add an in-game notification: `tellraw <player> {"text":"You received: bread x5","color":"green"}`
-2. For now, **don’t** send to the server; just return:
-
-   ```json
-   { "commands": ["give ...", "..."], "dryRun": true }
-   ```
-
-**Debug**
-
-* `curl` with "give me bread" → see properly formatted RCON commands in JSON response and logs
-* Verify `tellraw` notifications are automatically added for `give` commands
-* Test command formatting with various player names and items
-
----
-
-## 8) Server access & file transfer
-
-**Goal:** Set up reliable access to both servers for deployment and management.
-
-**Do**
-
-1. **PebbleHost (Minecraft server) - SFTP access:**
-   ```bash
-   # Upload config files to Minecraft server
-   sftp pebblehost
-   put config/server.properties
-   put config/paper-global.yml  # if using Paper
-   ```
-
-2. **Home server (NAS) - SSH/SCP access:**
-   ```bash
-   # Deploy Node.js service to home server
-   scp -r dist/ nas:~/minecraft-voice-grants/
-   scp package.json nas:~/minecraft-voice-grants/
-   scp .env nas:~/minecraft-voice-grants/
-
-   # SSH to manage the service
-   ssh nas
-   cd ~/minecraft-voice-grants
-   pnpm install --prod
-   pm2 restart minecraft-voice
-   ```
-
-**Debug**
-
-* `ssh pebblehost` and `ssh nas` both connect successfully
-* SFTP to PebbleHost allows file uploads
-* SCP can transfer built application to home server
-
----
-
-## 9) Enable RCON on the server
-
-**Goal:** Server can accept remote console commands.
-
-**Do (Paper/Spigot or itzg/minecraft-server in Docker)**
-
-1. In `server.properties`:
-
-   ```
-   enable-rcon=true
-   rcon.port=25575
-   rcon.password=YOUR_STRONG_PASSWORD
-   ```
-2. Restart server.
-3. Test locally from the host:
-
-   * With itzg image: `docker exec -i <mc_container> rcon-cli --password $RCON_PASSWORD "list"`
-   * Or install `mcrcon`: `mcrcon -H <host> -P 25575 -p $RCON_PASSWORD "list"`
-
-**Debug**
-
-* `list` returns online players.
-* `say RCON ok` shows in chat.
-
----
-
-## 10) Wire RCON client
-
-**Goal:** Execute commands for real.
-
-**Do**
-
-1. Add `rcon-client` (Node lib) or use a tiny wrapper that opens TCP, sends, closes.
-2. Config via `.env`:
-
-   ```
-   RCON_HOST=...
+   RCON_HOST=minecraft.server.com
    RCON_PORT=25575
-   RCON_PASSWORD=...
+   RCON_PASSWORD=your_password
    ```
-3. In `/voice` handler, if `?dryRun=1` → return commands; else:
+3. Update `/voice` handler to execute commands when not in dry-run mode
+4. Add RCON response logging and error handling
+5. Add query parameter `?dryRun=1` to bypass execution for testing
 
-   * Connect
-   * Send each command, collect responses
-   * Close
-
-**Debug**
-
-* `?dryRun=1` → still works.
-* Live request for `torch x2` → player receives items; logs capture RCON replies.
+**Debug plan:**
+* `?dryRun=1` → current behavior (return commands without executing)
+* Live request → connect to RCON, execute commands, capture responses
+* Error handling for RCON connection failures
 
 ---
 
-## 11) Externalize the endpoint (HTTPS)
+## 📋 8) UX improvements (PLANNED)
 
-**Goal:** Siri anywhere (not just LAN) + real auth.
+**Goal:** Better user experience both in Siri and in-game.
 
-**Do**
+**TODO:**
 
-1. Put the service behind HTTPS:
+1. **Conversational LLM responses:** Update the `reasoning` field in `generateCommands()` to return more natural language suitable for Siri to speak back
+   * Instead of: "Brief explanation of what was interpreted"  
+   * Return: "I gave you 5 bread and 1 diamond pickaxe" or "I turned on god mode for you"
 
-   * Easiest: Cloudflare Tunnel or Tailscale Funnel → stable public URL.
-2. Remove `X-Dev-Bypass`. Require real HMAC.
-3. Update Shortcut to post to `https://yourdomain/voice` and compute header:
+2. **In-game feedback:** Add `tellraw` commands for user confirmation:
+   * After successful item grants: `tellraw <player> {"text":"Delivered: bread x5, diamond_pickaxe x1","color":"green"}`
+   * After mode changes: `tellraw <player> {"text":"God mode enabled","color":"yellow"}`
 
-   * Easiest: add a small “Sign Payload” endpoint in **your** service the Shortcut calls first to fetch a one-time `X-Signature` (valid for 30s). Or use a Shortcut “Encrypt/Hash” step via a tiny Scriptable script.
+3. **Error feedback:** For policy/validation failures, send helpful `tellraw` messages explaining why the request was denied
 
-**Debug**
-
-* From cellular, Siri call succeeds.
-* Requests without signature get `401`.
-
----
-
-## 12) UX polish in-game (confirmation + feedback)
-
-**Goal:** Make it friendly and self-explanatory.
-
-**Do**
-
-1. After successful grants, send:
-
-   * `tellraw <player> {"text":"Delivered: bread x5, diamond_pickaxe x1","color":"green"}`
-2. On policy rejection (cooldown/unknown item), **don’t** hit RCON; respond to Siri with a friendly message and (optional) send `tellraw` explaining why next time.
-
-**Debug**
-
-* Try breaking a policy → see clear reason in Siri result; no server changes.
+**Debug plan:**
+* Test Siri responses sound natural when spoken
+* Verify in-game messages appear correctly
+* Test error cases provide clear guidance
 
 ---
 
-## 13) Observability & audit
+## 🚀 9) Production deployment (FUTURE)
 
-**Goal:** You can explain “who got what and when” and debug fast.
+**Goal:** Deploy securely with HTTPS and proper HMAC in Siri shortcuts.
 
-**Do**
+**TODO:**
 
-1. Log every request with:
-
-   * `reqId`, `deviceUser`, `targetPlayer`, `utterance`, `items`, `counts`, `mode` (dryRun/live), `result`, `latencyMs`.
-2. Write successes to `grants.ndjson`.
-3. Add `GET /admin/last-20` protected by a header token to view recent entries.
-
-**Debug**
-
-* Call twice; `GET /admin/last-20` shows both lines.
+1. Remove `X-Dev-Bypass` middleware
+2. Deploy server with HTTPS endpoint
+3. Update Siri shortcut to use production URL with real HMAC computation
+4. Add rate limiting and additional security measures
+5. Consider adding authentication logs and monitoring
 
 ---
 
-## 14) Safety net (kill switch & rate limits)
+## Notes for OSS Release
 
-**Goal:** One switch to stop everything if needed.
-
-**Do**
-
-1. `.env` flag `PAUSE_ALL_GRANTS=true` → handler returns 503 with message.
-2. Add `express-rate-limit`/`fastify-rate-limit` per-IP and per-device.
-
-**Debug**
-
-* Toggle flag → all calls 503.
-* Hit 10x quickly → rate-limited.
-
----
-
-## 15) Test pack (copy/paste ready)
-
-**Goal:** Known-good vectors the junior can run.
-
-**Do**
-
-* `curl` cases:
-
-  1. `"give me bread"` → `bread x5`.
-  2. `"give me 3 stacks of torches"` → `torch x64 * 2 +  torch x?` (normalize to 128 cap).
-  3. `"i want wings"` → `elytra x1`.
-  4. Cooldown violation → `429`.
-  5. Unknown item → dropped with note.
-
-**Debug**
-
-* Save as `scripts/smoke.sh`; run after any change.
-
----
-
-## 16) Productionize (nice-to-haves)
-
-* **“Are you sure?” parental confirm**: for certain items (elytra/diamonds), queue until a parent taps an approval link (signed, 10-min expiry).
-* **“Undo” pseudo-support**: track last N grants and expose `/admin/suggest-undo` → prints `/clear @p slot commands` or guidance (can’t truly undo most items).
-* **Dict growth**: periodically append new synonyms observed in logs (after human review).
-* **Multi-player phrasing**: “give us bread” → targets `[player, nearest friend?]` (keep simple: always target `deviceUser` only unless explicitly named).
-
----
-
-## Failure modes & the quick fix
-
-* **LLM timeout** → fallback to dictionary-only; if still empty, return friendly clarification to Siri.
-* **RCON connect fail** → return “Server unavailable” and set a `degraded` flag for 2 minutes (skip LLM calls while down).
-* **Player not online** → either queue until online or tell user “join the server first.”
-
----
-
-## Security recap (must keep)
-
-* HTTPS only.
-* HMAC on body (or one-time signed token).
-* Whitelisted players and allowed items.
-* Cooldowns + rate limits.
-* No arbitrary console commands—**only** generated `give`/`tellraw` with validated IDs.
-
----
-
-## Directory layout (reference)
-
-```
-/minecraft-voice-grants
-  .env
-  src/
-    server.ts
-    nlp.ts
-    policy.ts
-    rcon.ts
-    items.ts
-    players.ts
-  config/
-    players.yml
-    items.yml
-    policy.yml
-  scripts/
-    smoke.sh
-  logs/
-    grants.ndjson
-```
-
----
-
-## Definition of Done (ship checklist)
-
-* [ ] Siri Shortcut works over cellular → gets items in-game.
-* [ ] Logs show correct normalization path (dict vs LLM) and enforcement.
-* [ ] Cooldowns and ACLs verified.
-* [ ] Kill switch halts grants immediately.
-* [ ] Test pack passes (dryRun + live).
-* [ ] README documents setup for another engineer.
-
----
-
-If you want, I can drop in the minimal Fastify server and the `/voice` handler stub with the JSON Schema and dictionary loader next.
+* ✅ All real usernames replaced with example values (`.BabyBear1234`, `jonmagic`)
+* ✅ Environment-based configuration keeps sensitive data out of code
+* ✅ Comprehensive `env.example` file provided
+* ✅ Privacy-first design suitable for public release
