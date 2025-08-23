@@ -1,6 +1,6 @@
 # Siri → LLM Voice-to-Minecraft Bridge
 
-## Current Status: Step 2 ✅ COMPLETED - Ready for Step 3
+## Current Status: Step 3 ✅ COMPLETED - Ready for Step 4
 
 ---
 
@@ -149,26 +149,40 @@
 
 ---
 
-## 3) Player/device mapping
+## 3) Player/device mapping ✅ COMPLETED (Updated to use .env)
 
-**Goal:** Map `deviceUser` → Minecraft username(s).
+**Goal:** Map `deviceUser` → Minecraft username(s) via environment variables.
 
 **Do**
 
-1. Add `config/players.yml`:
-
-   ```yml
-   deviceUsers:
-     adalyn_iphone: cuddlysage89
-     jon_iphone: hulkmagic
-   defaults:
-     grant_target: cuddlysage89
+1. Add player mappings to `.env`: ✅
+   ```env
+   # Player device to Minecraft username mappings
+   PLAYER_EISLEY=.BabyBear1234
+   PLAYER_JON=jonmagic
+   DEFAULT_PLAYER=.BabyBear1234
    ```
-2. Load at boot; expose helper `resolvePlayer(deviceUser)` with fallback to `defaults.grant_target`.
+
+2. Update `env.example` with placeholder values: ✅
+   ```env
+   # Player device to Minecraft username mappings
+   PLAYER_EISLEY=your_minecraft_username
+   PLAYER_JON=another_minecraft_username
+   DEFAULT_PLAYER=default_minecraft_username
+   ```
+
+3. Update `src/players.ts` to read from environment variables instead of YAML: ✅
 
 **Debug**
 
-* `POST /voice` with `deviceUser: "adalyn_iphone"` returns `targetPlayer: "cuddlysage89"` in the echo response.
+* `POST /voice` with `deviceUser: "eisley"` returns `targetPlayer: ".BabyBear1234"` ✅
+* `POST /voice` with `deviceUser: "jon"` returns `targetPlayer: "jonmagic"` ✅
+* `POST /voice` with unknown/missing `deviceUser` returns `targetPlayer: ".BabyBear1234"` (default) ✅
+* No sensitive usernames committed to code ✅
+
+**Status:** STABLE ✅
+
+---
 
 ---
 
@@ -272,7 +286,7 @@
    maxTotalCount: 128
    allowedItems: [bread, diamond_pickaxe, elytra, torch]
    requirePlayerWhitelist: true
-   playerWhitelist: [cuddlysage89, hulkmagic]
+   playerWhitelist: [.BabyBear1234, jonmagic]
    cooldownSecondsPerDevice: 30
    ```
 2. Enforce:

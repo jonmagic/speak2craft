@@ -1,9 +1,13 @@
 import fastify from 'fastify'
 import { config } from 'dotenv'
 import { createHmac } from 'crypto'
+import { loadPlayerConfig, resolvePlayer } from './players'
 
 // Load environment variables
 config()
+
+// Load player configuration
+loadPlayerConfig()
 
 const app = fastify({
   logger: {
@@ -75,14 +79,19 @@ app.get('/healthz', async (request, reply) => {
 app.post('/voice', async (request, reply) => {
   const body = request.body as { utterance?: string; deviceUser?: string }
 
+  // Resolve the target player
+  const targetPlayer = resolvePlayer(body.deviceUser)
+
   request.log.info({
     utterance: body.utterance,
-    deviceUser: body.deviceUser
+    deviceUser: body.deviceUser,
+    targetPlayer
   }, 'Voice request received')
 
-  // For now, just echo back the request
+  // For now, just echo back the request with resolved player
   return {
     received: body,
+    targetPlayer,
     ts: Date.now(),
   }
 })
