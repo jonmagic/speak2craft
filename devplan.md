@@ -10,7 +10,51 @@
 
 **Do**
 
-1. `pnpm init`. Add `typescript`, `ts-node`, `zod`, `@ai-sdk/openai`, `ai`, `pino`, `dotenv`, `fastify` (or `express`). ✅
+1. `p**Debug**
+
+* **Goal:** Shortcut waits f* ---d request**Debug**
+
+* `curl` with "give me bread" → LLM generates `["give player bread 5"]` → v**Debug**
+
+* Make 2 quick requests → 2nd should 429 with "cooldown" message
+* Request commands for non-whitelisted player → rejection with helpful error
+* Try `/give` with invalid item → command filtered out with item validation error
+* Try `/god` command twice quickly → second request gets longer cooldown message
+* Request with excessive item count → count clamped to policy limitsation passes
+* `curl` with "give me unicorn" → LLM generates `["give player unicorn 1"]` → validation fails with "Sorry, 'unicorn' is not a valid Minecraft item"
+* `curl` with "turn on god mode" → LLM generates `["god player"]` → validation passes
+* `curl` with "let me fly" → LLM generates `["fly player"]` → validation passes
+* `curl` with "teleport me home" → LLM generates `["home player"]` → validation passes
+* Add logs showing: utterance → LLM commands → validation resultsiri speaks: "Delive**Debug**
+
+*## 7) RCON plumbing (dry-run first)
+
+**Goal:** Execute validated LLM-generated commands via RCON, with dry-run testing.
+
+**Do**
+
+1. Update RCON execution pipeline:
+   * Take validated commands from steps 4-6 (LLM → item validation → policy enforcement)
+   * For each command, ensure proper formatting for RCON
+   * Add automatic `tellraw` notifications for successful `give` commands
+
+2. For now, **don't** send to the server; just return:
+
+   ```json
+   { "commands": ["give .BabyBear1234 bread 5", "tellraw .BabyBear1234 {\"text\":\"You received: bread x5\",\"color\":\"green\"}"], "dryRun": true }
+   ```
+
+3. Command formatting:
+   * Ensure player names are properly escaped
+   * Validate command syntax before queuing
+   * Generate user-friendly notificationsequests → 2nd should 429 with "cooldown" message
+* Request commands for non-whitelisted player → rejection with helpful error
+* LLM tries to generate non-`give` command → command filtered out with explanation
+* Request with excessive item count → count clamped to policy limits bread x5"
+* Invalid item → Siri speaks: "Sorry, 'unicorn' is not a valid Minecraft item. Try: bread, diamond_pickaxe, torch, etc."
+* Server error → Siri speaks: "Sorry, the Minecraft server is currently unavailable" server response and speaks results back to user.*Goal:** Shortcut waits for server response and speaks results back to user.curl` with "give me bread" → LLM generates `["give player bread 5"]` → validation passes
+* `curl` with "give me unicorn" → LLM generates `["give player unicorn 1"]` → validation fails with "Sorry, 'unicorn' is not a valid Minecraft item"
+* Add logs showing: utterance → LLM commands → validation resultsinit`. Add `typescript`, `ts-node`, `zod`, `@ai-sdk/openai`, `ai`, `pino`, `dotenv`, `fastify` (or `express`). ✅
 2. Create `src/server.ts` with: ✅
    * `GET /healthz` → returns `{ok:true, ts:<epoch>}` ✅
    * `POST /voice` → accepts `{ utterance: string, deviceUser?: string }` and just echoes back. ✅
@@ -186,38 +230,68 @@
 
 ---
 
-## 4) Canonical item dictionary + synonyms
+## 4) LLM command generation with item validation
 
-**Goal:** Deterministic ID mapping before we ever call an LLM.
+**Goal:** LLM interprets utterances and generates RCON commands, with validation against the item list.
 
 **Do**
 
-1. Add `config/items.yml` (start small; expand later):
+1. Add `src/nlp.ts` using Vercel AI SDK's `generateObject` to interpret utterances into RCON commands:
 
-   ```yml
-   items:
-     bread:
-       id: minecraft:bread
-       defaultCount: 5
-       synonyms: [loaf, food, sandwich bread]
-     diamond_pickaxe:
-       id: minecraft:diamond_pickaxe
-       defaultCount: 1
-       synonyms: [pickaxe, diamond pick, pick]
-     elytra:
-       id: minecraft:elytra
-       defaultCount: 1
-       synonyms: [wings, glider]
-     torch:
-       id: minecraft:torch
-       defaultCount: 16
-       synonyms: [light, lights]
+   ```ts
+   const schema = {
+     type: "object",
+     properties: {
+       commands: {
+         type: "array",
+         items: {
+           type: "string",
+           pattern: "^(give|god|fly|sethome|home|tp|tellraw)\\s*.*$"  // Commands you actually use
+         }
+       },
+       reasoning: {
+         type: "string",
+         description: "Brief explanation of what was interpreted from the user's request"
+       },
+       itemsRequested: {
+         type: "array",
+         items: {
+           type: "object",
+           properties: {
+             itemName: { type: "string" },
+             quantity: { type: "integer", minimum: 1, maximum: 64 },
+             player: { type: "string" }
+           },
+           required: ["itemName", "quantity", "player"]
+         }
+       }
+     },
+     required: ["commands", "itemsRequested"],
+     additionalProperties: false,
+   };
    ```
-2. Implement `matchItems(utterance): Array<{id,count,confidence,source:"dict"}>` using:
 
-   * Case-insensitive token match against `items.*.synonyms + key`.
-   * Parse counts with simple patterns (`"x 10"`, `"10 torches"`, `"a stack"` → 64).
-   * Clamp count to `[1, 64]`.
+2. System prompt instructs LLM to:
+   * Convert natural language to valid RCON commands
+   * Use these commands: `/give` (items), `/god` (invincibility), `/fly` (flight), `/sethome` (save location), `/home` (teleport to saved location), `/tp` (teleport to coordinates/player)
+   * Use reasonable default quantities for items (bread=5, tools=1, blocks=16, etc.)
+   * Target the requesting player by default
+   * Only generate commands for actions clearly requested by the user
+
+3. Add `src/items.ts` to validate generated commands:
+   * Load `config/items.csv` into a Set of valid item names
+   * Use the `itemsRequested` array from LLM response for validation (only applies to `/give` commands)
+   * Cross-reference each `itemName` against the CSV list for `/give` commands
+   * For non-item commands (`/god`, `/fly`, `/home`, etc.), validate command structure but skip item validation
+   * Return helpful error messages for invalid items with suggestions
+   * Validate that commands match the expected items
+
+4. Pipeline for `/voice`:
+   * Call LLM to generate structured response with commands and itemsRequested
+   * Validate each item in `itemsRequested` against items.csv
+   * Cross-validate that `commands` array matches the `itemsRequested` items
+   * If validation fails, return user-friendly error message with item suggestions
+   * If valid, proceed with validated commands
 
 **Debug**
 
@@ -226,7 +300,7 @@
 
 ---
 
-## 5) LLM fallback (structured)
+## 5) Enhanced Shortcut with voice response
 
 **Goal:** Handle free-form (“a snack and a pickaxe for me and my friend”) reliably.
 
@@ -234,29 +308,15 @@
 
 1. Add `src/nlp.ts` using Vercel AI SDK’s `generateObject` with **JSON Schema**:
 
-   ```ts
-   const schema = {
-     type: "object",
-     properties: {
-       action: { enum: ["give"] },
-       targets: { type: "array", items: { type: "string" } },
-       items: {
-         type: "array",
-         items: {
-           type: "object",
-           properties: {
-             name: { type: "string" },      // canonical or natural text
-             id:   { type: "string" },      // prefer minecraft:<id> if known
-             count:{ type: "integer", minimum: 1, maximum: 64 }
-           },
-           required: ["name"],
-         }
-       }
-     },
-     required: ["items"],
-     additionalProperties: false,
-   };
-   ```
+   1. Update Siri Shortcut "Ask Minecraft":
+   * Keep existing: **Dictate Text** → variable `speech`
+   * Keep existing: **Get Contents of URL** (POST to server)
+   * **NEW:** Add **Speak Text** action using the server response
+   * **NEW:** Add error handling for failed requests
+
+2. Server response format:
+   * Success: `{"success": true, "message": "Delivered: bread x5", "commands": ["give player bread 5"]}`
+   * Error: `{"success": false, "message": "Sorry, 'unicorn' is not a valid Minecraft item. Try: bread, diamond_pickaxe, torch, etc."}`
 2. System prompt includes your **item dictionary** (names + ids + synonyms) and strict rules:
 
    * Only output items that exist in the provided dictionary.
@@ -273,28 +333,44 @@
 
 ---
 
-## 6) Safety rails (ACLs & limits)
+## 6) Safety rails (command validation & limits)
 
-**Goal:** Prevent abuse or accidents.
+**Goal:** Prevent abuse or accidents in generated RCON commands.
 
 **Do**
 
 1. `config/policy.yml`:
 
    ```yml
-   maxItemsPerRequest: 3
-   maxTotalCount: 128
-   allowedItems: [bread, diamond_pickaxe, elytra, torch]
+   maxCommandsPerRequest: 5
+   maxItemCountPerCommand: 64
+   allowedCommands: [give, god, fly, sethome, home, tp, tellraw]
    requirePlayerWhitelist: true
    playerWhitelist: [.BabyBear1234, jonmagic]
    cooldownSecondsPerDevice: 30
+   # Command-specific limits
+   cooldownSecondsForGod: 60      # Prevent god mode spam
+   cooldownSecondsForFly: 60      # Prevent fly spam
+   maxHomesPerPlayer: 5           # Limit saved home locations
    ```
-2. Enforce:
 
-   * Drop extra items; clamp counts.
-   * Reject if target not whitelisted.
-   * Per-device cooldown (in-memory map with timestamps).
-   * Log rejections with reason.
+2. Command validation pipeline:
+   * Parse each generated command to extract type, player, item/coordinates, count
+   * Reject non-whitelisted command types (only `give`, `god`, `fly`, `sethome`, `home`, `tp`, and `tellraw` allowed)
+   * Reject if target player not whitelisted
+   * Apply command-specific validation:
+     - `/give`: Clamp item counts, validate items against CSV
+     - `/god` & `/fly`: Apply longer cooldowns to prevent spam
+     - `/sethome`: Validate home name, check limits per player
+     - `/home`: Validate home exists
+     - `/tp`: Validate coordinates or target player exists
+   * Apply per-device and per-command cooldowns
+   * Log all rejections with detailed reasons
+
+3. Integration with item validation:
+   * First: LLM generates commands → item validation (step 4)
+   * Then: Command structure validation → policy enforcement
+   * Finally: Send to RCON or return helpful error message
 
 **Debug**
 
@@ -321,7 +397,9 @@
 
 **Debug**
 
-* Request → see commands in JSON response and logs.
+* `curl` with "give me bread" → see properly formatted RCON commands in JSON response and logs
+* Verify `tellraw` notifications are automatically added for `give` commands
+* Test command formatting with various player names and items
 
 ---
 
