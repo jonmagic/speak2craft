@@ -1,6 +1,6 @@
 # Siri → LLM Voice-to-Minecraft Bridge
 
-## Current Status: Step 1 ✅ COMPLETED - Ready for Step 2
+## Current Status: Step 2 ✅ COMPLETED - Ready for Step 3
 
 ---
 
@@ -45,6 +45,31 @@
 * Dev bypass with `X-Dev-Bypass: 1` works for LAN testing ✅
 
 **Status:** STABLE ✅
+
+---
+
+## 2) Siri Shortcut (local-only first) ✅ COMPLETED
+
+**Goal:** Use Siri to hit your server.
+
+**Do**
+
+1. In Shortcuts app, make "Ask Minecraft": ✅
+   * Action 1: **Dictate Text** → variable `speech`. ✅
+   * Action 2: **Get Contents of URL** (POST JSON) to `http://<lan-ip>:3000/voice`. ✅
+     * JSON body: `{ "utterance": magic: speech, "deviceUser": "adalyn_iphone" }` ✅
+     * Headers: `Content-Type: application/json`, `X-Dev-Bypass: 1` ✅
+2. Response shows in Shortcut. ✅
+
+**Debug**
+
+* Say: "10 blocks" → Server logs: `{"utterance":"10 blocks","msg":"Voice request received"}` ✅
+* Dev bypass working: `{"msg":"Using dev bypass - should only be used on LAN"}` ✅
+* Response time: 13ms ✅
+
+**Status:** STABLE ✅
+
+[Siri Shortcut Screenshot](https://share.cleanshot.com/nfxTycMG)
 
 ---
 
