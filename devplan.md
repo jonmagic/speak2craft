@@ -1,4 +1,10 @@
-# Siri → LLM## 0) Repo + skeleton ✅ COMPLETED
+# Siri → LLM Voice-to-Minecraft Bridge
+
+## Current Status: Step 1 ✅ COMPLETED - Ready for Step 2
+
+---
+
+## 0) Repo + skeleton ✅ COMPLETED
 
 **Goal:** Have a runnable HTTP service with healthcheck and structured logs.
 
@@ -6,7 +12,6 @@
 
 1. `pnpm init`. Add `typescript`, `ts-node`, `zod`, `@ai-sdk/openai`, `ai`, `pino`, `dotenv`, `fastify` (or `express`). ✅
 2. Create `src/server.ts` with: ✅
-
    * `GET /healthz` → returns `{ok:true, ts:<epoch>}` ✅
    * `POST /voice` → accepts `{ utterance: string, deviceUser?: string }` and just echoes back. ✅
    * Fastify logging with request id. ✅
@@ -14,10 +19,34 @@
 
 **Debug**
 
-* `curl localhost:3000/healthz` → `{"ok":true,"ts":1755917422434}` ✅
-* `curl -XPOST /voice -d '{"utterance":"give me bread"}'` → `{"received":{"utterance":"give me bread"},"ts":1755917433860}` ✅
+* `curl localhost:3000/healthz` → `{"ok":true,"ts":1755917630001}` ✅
+* `curl -XPOST /voice -d '{"utterance":"give me bread"}'` → `{"received":{"utterance":"give me bread"},"ts":1755917638089}` ✅
 
-**Status:** STABLE ✅y-Step Build Plan
+**Status:** STABLE ✅
+
+---
+
+## 1) Request authentication (simple HMAC) ✅ COMPLETED
+
+**Goal:** Only Siri Shortcut requests are accepted.
+
+**Do**
+
+1. Add an HMAC header check middleware: ✅
+   * Compute `sig = base64(hmacSHA256(body, HMAC_SECRET))`. ✅
+   * Require header `X-Signature: <sig>`. ✅
+2. If invalid → `401`. ✅
+
+**Debug**
+
+* `curl` without header → `{"error":"Missing signature"}` ✅
+* `curl` with header (computed locally) → `{"received":{"utterance":"give me bread"},"ts":1755917866371}` ✅
+* `curl` with invalid signature → `{"error":"Invalid signature"}` ✅
+* Dev bypass with `X-Dev-Bypass: 1` works for LAN testing ✅
+
+**Status:** STABLE ✅
+
+---
 
 ## Tech choices (locked for this plan)
 
