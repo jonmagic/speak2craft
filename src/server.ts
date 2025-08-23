@@ -2,22 +2,39 @@ import fastify from 'fastify'
 import { config } from 'dotenv'
 import { createHmac } from 'crypto'
 import { loadPlayerConfig, resolvePlayer } from './players'
+import { loadItemList, validateItems } from './items'
+import { generateCommands } from './nlp'
 
 // Load environment variables
 config()
 
-// Load player configuration
+// Load configurations
 loadPlayerConfig()
+loadItemList()
 
 const app = fastify({
   logger: {
     level: process.env.LOG_LEVEL || 'info',
-    formatters: {
-      level: (label) => {
-        return { level: label.toUpperCase() }
-      },
-    },
-    timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`,
+    transport: {
+      targets: [
+        {
+          target: 'pino/file',
+          level: 'info',
+          options: {
+            destination: './tmp/log.txt',
+            mkdir: true
+          }
+        },
+        {
+          target: 'pino-pretty',
+          level: 'info',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:standard'
+          }
+        }
+      ]
+    }
   },
   genReqId: () => {
     return Math.random().toString(36).substring(2, 15)
@@ -79,6 +96,13 @@ app.get('/healthz', async (request, reply) => {
 app.post('/voice', async (request, reply) => {
   const body = request.body as { utterance?: string; deviceUser?: string }
 
+  if (!body.utterance || typeof body.utterance !== 'string') {
+    return reply.code(400).send({
+      success: false,
+      message: 'Missing or invalid utterance field'
+    })
+  }
+
   // Resolve the target player
   const targetPlayer = resolvePlayer(body.deviceUser)
 
@@ -88,11 +112,75 @@ app.post('/voice', async (request, reply) => {
     targetPlayer
   }, 'Voice request received')
 
-  // For now, just echo back the request with resolved player
-  return {
-    received: body,
-    targetPlayer,
-    ts: Date.now(),
+  try {
+    // Generate commands using LLM
+    const llmResult = await generateCommands(body.utterance, targetPlayer)
+
+    request.log.info({
+      commands: llmResult.commands,
+      itemsRequested: llmResult.itemsRequested,
+      reasoning: llmResult.reasoning
+    }, 'LLM generated commands')
+
+    // Validate items if any were requested
+    let validationResult = null
+    if (llmResult.itemsRequested.length > 0) {
+      validationResult = validateItems(llmResult.itemsRequested)
+
+      request.log.info({
+        isValid: validationResult.isValid,
+        validItems: validationResult.validItems,
+        invalidItems: validationResult.invalidItems,
+        errors: validationResult.errors
+      }, 'Item validation result')
+
+      // If validation failed, return helpful error message
+      if (!validationResult.isValid) {
+        const errorMessages = []
+
+        // Add general errors
+        errorMessages.push(...validationResult.errors)
+
+        // Add invalid item errors with suggestions
+        for (const invalidItem of validationResult.invalidItems) {
+          const suggestions = invalidItem.suggestions.length > 0
+            ? `. Try: ${invalidItem.suggestions.join(', ')}`
+            : ''
+          errorMessages.push(`Sorry, '${invalidItem.itemName}' is not a valid Minecraft item${suggestions}`)
+        }
+
+        return {
+          success: false,
+          message: errorMessages.join('. '),
+          commands: llmResult.commands,
+          itemsRequested: llmResult.itemsRequested,
+          validationResult,
+          ts: Date.now()
+        }
+      }
+    }
+
+    // For now, return the validated commands without executing (Step 7 will add RCON)
+    return {
+      success: true,
+      message: validationResult
+        ? validationResult.validItems.map(item => `${item.itemName} x${item.quantity}`).join(', ')
+        : llmResult.reasoning,
+      commands: llmResult.commands,
+      itemsRequested: llmResult.itemsRequested,
+      validationResult,
+      dryRun: true,
+      ts: Date.now()
+    }
+  } catch (error) {
+    request.log.error(error, 'Failed to process voice command')
+
+    return reply.code(500).send({
+      success: false,
+      message: 'Sorry, there was an error processing your request',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      ts: Date.now()
+    })
   }
 })
 
