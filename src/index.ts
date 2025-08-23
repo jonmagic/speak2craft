@@ -1,1 +1,1 @@
-// code will go here
+// This file is deprecated - use server.ts instead

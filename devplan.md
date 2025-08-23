@@ -1,4 +1,23 @@
-# Siri → LLM → Minecraft: Step-by-Step Build Plan
+# Siri → LLM## 0) Repo + skeleton ✅ COMPLETED
+
+**Goal:** Have a runnable HTTP service with healthcheck and structured logs.
+
+**Do**
+
+1. `pnpm init`. Add `typescript`, `ts-node`, `zod`, `@ai-sdk/openai`, `ai`, `pino`, `dotenv`, `fastify` (or `express`). ✅
+2. Create `src/server.ts` with: ✅
+
+   * `GET /healthz` → returns `{ok:true, ts:<epoch>}` ✅
+   * `POST /voice` → accepts `{ utterance: string, deviceUser?: string }` and just echoes back. ✅
+   * Fastify logging with request id. ✅
+3. `.env` for `PORT`, `HMAC_SECRET`, `OPENAI_API_KEY`. ✅
+
+**Debug**
+
+* `curl localhost:3000/healthz` → `{"ok":true,"ts":1755917422434}` ✅
+* `curl -XPOST /voice -d '{"utterance":"give me bread"}'` → `{"received":{"utterance":"give me bread"},"ts":1755917433860}` ✅
+
+**Status:** STABLE ✅y-Step Build Plan
 
 ## Tech choices (locked for this plan)
 
