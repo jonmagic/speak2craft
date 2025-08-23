@@ -4,7 +4,7 @@
 
 * Server: Node.js (TypeScript), fastify, pnpm
 * Model: OpenAI (use `generateObject` / JSON Schema via Vercel AI SDK)
-* Minecraft bridge: RCON
+* Minecraft## ✅ 8) UX improvements (COMPLETE)bridge: RCON
 * Transport security: HTTPS + shared-secret HMAC
 * Voice: Apple Shortcuts (Siri)
 
@@ -77,7 +77,7 @@
 
 1. ✅ Environment-based player configuration in `src/players.ts`:
    * `PLAYER_EISLEY=.BabyBear1234` (device → minecraft username mapping)
-   * `PLAYER_JONMAGIC=jonmagic` 
+   * `PLAYER_JONMAGIC=jonmagic`
    * `DEFAULT_PLAYER=jonmagic` (fallback for unknown devices)
 2. ✅ Privacy-first: No player names in code/config files
 3. ✅ Dynamic loading from environment variables
@@ -131,7 +131,7 @@
 
 2. ✅ **Expanded command set beyond just `give`:**
    * `give <player> <item> <quantity>` - Give items to player
-   * `god <player>` - Toggle invincibility 
+   * `god <player>` - Toggle invincibility
    * `fly <player>` - Toggle flight
    * `sethome <player> <name>` - Set home location
    * `home <player> <name>` - Teleport to home
@@ -163,12 +163,12 @@
    * LLM command generation
    * Item validation (if applicable)
    * Structured JSON response with success/failure states
-   
+
 2. ✅ Error handling with user-friendly messages:
    * Invalid items → suggestions returned
    * Missing utterance → clear error
    * LLM failures → graceful fallback
-   
+
 3. ✅ Rich logging throughout for debugging
 4. ✅ Response format optimized for both debugging and Siri
 
@@ -179,56 +179,73 @@
 
 ---
 
-## 🔄 7) RCON client implementation (TODO - NEXT STEP)
+## ✅ 7) RCON client implementation (COMPLETE)
 
 **Goal:** Execute commands on actual Minecraft server via RCON.
 
-**Currently:** Commands are generated and validated but not executed (returns `dryRun: true`)
+**What was built:**
 
-**TODO:**
-
-1. Add `rcon-client` package or implement TCP RCON wrapper
-2. Environment config already in place:
+1. ✅ Added `rcon-client` package dependency
+2. ✅ Created `src/rcon.ts` module with:
+   * `MinecraftRcon` class for connection management
+   * `executeMinecraftCommands()` function for batch command execution
+   * Automatic connection/disconnection handling
+   * Comprehensive error handling and logging
+   * Singleton instance pattern for the application
+3. ✅ Updated `/voice` endpoint to support RCON execution:
+   * Query parameter `?dryRun=1` bypasses execution (for testing)
+   * Live requests connect to RCON and execute commands
+   * RCON responses captured and returned in API response
+   * Error handling for RCON connection failures
+4. ✅ Enhanced health check endpoint:
+   * `GET /healthz?checkRcon=1` tests RCON connectivity
+   * Shows server status and player count when connected
+5. ✅ Environment config already in place:
    ```
    RCON_HOST=minecraft.server.com
    RCON_PORT=25575
    RCON_PASSWORD=your_password
    ```
-3. Update `/voice` handler to execute commands when not in dry-run mode
-4. Add RCON response logging and error handling
-5. Add query parameter `?dryRun=1` to bypass execution for testing
 
-**Debug plan:**
-* `?dryRun=1` → current behavior (return commands without executing)
-* Live request → connect to RCON, execute commands, capture responses
-* Error handling for RCON connection failures
+**Debug verified:**
+* ✅ `?dryRun=1` → returns commands without executing (testing mode)
+* ✅ Live requests → connect to RCON, execute commands, capture responses
+* ✅ RCON connection successful: health check shows "0 out of maximum 20 players online"
+* ✅ Command execution works: server responds with "Player not found" for offline players
+* ✅ Error handling works: connection failures return user-friendly messages
+* ✅ Automatic connection management prevents hanging connections
 
 ---
 
-## 📋 8) UX improvements (PLANNED)
+## � 8) UX improvements (TODO - NEXT STEP)
 
 **Goal:** Better user experience both in Siri and in-game.
 
-**TODO:**
+**What was built:**
 
-1. **Conversational LLM responses:** Update the `reasoning` field in `generateCommands()` to return more natural language suitable for Siri to speak back
-   * Instead of: "Brief explanation of what was interpreted"  
-   * Return: "I gave you 5 bread and 1 diamond pickaxe" or "I turned on god mode for you"
+1. ✅ **Conversational LLM responses:** Updated `generateCommands()` to include a `spokenResponse` field:
+   * Natural language suitable for Siri to speak back
+   * Examples: "I gave you 5 bread and turned on god mode for you"
+   * More engaging than technical command descriptions
 
-2. **In-game feedback:** Add `tellraw` commands for user confirmation:
-   * After successful item grants: `tellraw <player> {"text":"Delivered: bread x5, diamond_pickaxe x1","color":"green"}`
-   * After mode changes: `tellraw <player> {"text":"God mode enabled","color":"yellow"}`
+2. ✅ **In-game feedback:** Automatic `tellraw` commands for user confirmation:
+   * After item grants: `tellraw <player> {"text":"✓ Delivered: bread x5","color":"green"}`
+   * After mode changes: `tellraw <player> {"text":"✓ God mode enabled","color":"yellow"}`
+   * Color-coded: green for items, yellow for modes
 
-3. **Error feedback:** For policy/validation failures, send helpful `tellraw` messages explaining why the request was denied
+3. ✅ **Error feedback:** For validation failures, sends helpful `tellraw` messages:
+   * Invalid items show suggestions in red
+   * Explains why requests were denied with actionable guidance
 
-**Debug plan:**
-* Test Siri responses sound natural when spoken
-* Verify in-game messages appear correctly
-* Test error cases provide clear guidance
+**Debug verified:**
+* ✅ Conversational responses: "I gave you 5 bread and turned on god mode for you"
+* ✅ Multi-command execution: Items + modes + feedback all work together
+* ✅ In-game confirmation: `tellraw` commands sent for visual feedback
+* ✅ Full UX flow: Voice → LLM → validation → RCON → in-game feedback + Siri response
 
 ---
 
-## 🚀 9) Production deployment (FUTURE)
+## 🚀 9) Production deployment (NEXT STEP)
 
 **Goal:** Deploy securely with HTTPS and proper HMAC in Siri shortcuts.
 

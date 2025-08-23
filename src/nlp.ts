@@ -6,6 +6,7 @@ import { z } from 'zod'
 const CommandGenerationSchema = z.object({
   commands: z.array(z.string()).describe('Array of RCON commands to execute'),
   reasoning: z.string().describe('Brief explanation of what was interpreted from the user request'),
+  spokenResponse: z.string().describe('Natural, conversational response suitable for Siri to speak back to the user'),
   itemsRequested: z.array(z.object({
     itemName: z.string().describe('The Minecraft item name (lowercase, underscore format)'),
     quantity: z.number().int().min(1).max(64).describe('Number of items requested'),
@@ -42,17 +43,44 @@ IMPORTANT RULES:
 3. For give commands, populate itemsRequested array with all items
 4. For non-item commands (god, fly, home, tp), leave itemsRequested empty
 5. Always target the requesting player unless specifically told otherwise
-6. Keep reasoning brief and helpful
+6. Keep reasoning brief and technical
+7. Make spokenResponse natural and conversational for voice assistant
+8. Add tellraw feedback commands for successful operations to confirm in-game
+
+TELLRAW FEEDBACK EXAMPLES:
+- After giving items: 'tellraw player {"text":"✓ Delivered: bread x5","color":"green"}'
+- After god mode: 'tellraw player {"text":"✓ God mode enabled","color":"yellow"}'
+- After flight: 'tellraw player {"text":"✓ Flight enabled","color":"yellow"}'
+- Use green for item delivery, yellow for mode changes
+
+SPOKEN RESPONSE EXAMPLES:
+- For items: "I gave you 5 bread and a diamond pickaxe"
+- For modes: "I turned on god mode for you" or "I enabled flight"
+- For teleport: "I teleported you to your base"
+- For errors: "I couldn't do that because..."
+- Keep it natural, friendly, and concise
 
 Examples:
-- "give me bread" → commands: ["give player bread 5"], itemsRequested: [{"itemName": "bread", "quantity": 5, "player": "player"}]
-- "turn on god mode" → commands: ["god player"], itemsRequested: []
-- "let me fly" → commands: ["fly player"], itemsRequested: []
+- "give me bread" →
+  * commands: ["give player bread 5", "tellraw player {\"text\":\"✓ Delivered: bread x5\",\"color\":\"green\"}"]
+  * spokenResponse: "I gave you 5 bread"
+  * itemsRequested: [{"itemName": "bread", "quantity": 5, "player": "player"}]
+
+- "turn on god mode" →
+  * commands: ["god player", "tellraw player {\"text\":\"✓ God mode enabled\",\"color\":\"yellow\"}"]
+  * spokenResponse: "I turned on god mode for you"
+  * itemsRequested: []
+
+- "let me fly" →
+  * commands: ["fly player", "tellraw player {\"text\":\"✓ Flight enabled\",\"color\":\"yellow\"}"]
+  * spokenResponse: "I enabled flight for you"
+  * itemsRequested: []
 
 RESPONSE FORMAT:
 Always return a JSON object with exactly these fields:
 - commands: array of command strings
-- reasoning: brief explanation string
+- reasoning: brief technical explanation
+- spokenResponse: natural conversational response for voice assistant
 - itemsRequested: array of objects with itemName, quantity, player fields`
 
 export interface NLPOptions {

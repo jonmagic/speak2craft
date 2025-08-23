@@ -4,6 +4,7 @@ import { createHmac } from 'crypto'
 import { loadPlayerConfig, resolvePlayer } from './players'
 import { loadItemList, validateItems } from './items'
 import { generateCommands } from './nlp'
+import { executeMinecraftCommands } from './rcon'
 
 // Load environment variables
 config()
@@ -44,7 +45,7 @@ const app = fastify({
 // HMAC verification middleware
 app.addHook('preHandler', async (request, reply) => {
   // Skip HMAC verification for health check
-  if (request.url === '/healthz') {
+  if (request.url.startsWith('/healthz')) {
     return
   }
 
@@ -86,15 +87,43 @@ app.addHook('preHandler', async (request, reply) => {
 
 // Health check endpoint
 app.get('/healthz', async (request, reply) => {
-  return {
+  const query = request.query as { checkRcon?: string }
+  const shouldCheckRcon = query.checkRcon === '1' || query.checkRcon === 'true'
+
+  const health: any = {
     ok: true,
     ts: Date.now(),
   }
+
+  // Optionally check RCON connectivity
+  if (shouldCheckRcon) {
+    try {
+      const { getRconInstance } = await import('./rcon')
+      const rcon = getRconInstance()
+      const serverInfo = await rcon.getServerInfo()
+
+      health.rcon = {
+        connected: serverInfo.online,
+        players: serverInfo.players || null
+      }
+
+      // Always disconnect after health check
+      await rcon.disconnect()
+    } catch (error) {
+      health.rcon = {
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown RCON error'
+      }
+    }
+  }
+
+  return health
 })
 
 // Voice command endpoint
 app.post('/voice', async (request, reply) => {
   const body = request.body as { utterance?: string; deviceUser?: string }
+  const query = request.query as { dryRun?: string }
 
   if (!body.utterance || typeof body.utterance !== 'string') {
     return reply.code(400).send({
@@ -103,13 +132,17 @@ app.post('/voice', async (request, reply) => {
     })
   }
 
+  // Check if this is a dry-run (testing mode)
+  const isDryRun = query.dryRun === '1' || query.dryRun === 'true'
+
   // Resolve the target player
   const targetPlayer = resolvePlayer(body.deviceUser)
 
   request.log.info({
     utterance: body.utterance,
     deviceUser: body.deviceUser,
-    targetPlayer
+    targetPlayer,
+    isDryRun
   }, 'Voice request received')
 
   try {
@@ -149,27 +182,85 @@ app.post('/voice', async (request, reply) => {
           errorMessages.push(`Sorry, '${invalidItem.itemName}' is not a valid Minecraft item${suggestions}`)
         }
 
+        // Send error feedback to game if not in dry-run mode
+        const errorFeedbackCommand = `tellraw ${targetPlayer} {"text":"✗ ${errorMessages.join('. ')}","color":"red"}`
+
+        try {
+          if (!isDryRun) {
+            await executeMinecraftCommands([errorFeedbackCommand])
+          }
+        } catch (error) {
+          request.log.warn(error, 'Failed to send error feedback to game')
+        }
+
         return {
           success: false,
           message: errorMessages.join('. '),
           commands: llmResult.commands,
           itemsRequested: llmResult.itemsRequested,
           validationResult,
+          feedbackCommand: errorFeedbackCommand,
           ts: Date.now()
         }
       }
     }
 
-    // For now, return the validated commands without executing (Step 7 will add RCON)
+    // Execute commands via RCON (unless dry-run mode)
+    let rconResult = null
+    if (!isDryRun && llmResult.commands.length > 0) {
+      request.log.info({ commands: llmResult.commands }, 'Executing commands via RCON')
+
+      try {
+        rconResult = await executeMinecraftCommands(llmResult.commands)
+
+        request.log.info({
+          success: rconResult.success,
+          responses: rconResult.responses,
+          errors: rconResult.errors
+        }, 'RCON execution result')
+
+        // If RCON execution failed, return error
+        if (!rconResult.success) {
+          return {
+            success: false,
+            message: `Failed to execute commands on Minecraft server: ${rconResult.errors.join(', ')}`,
+            commands: llmResult.commands,
+            itemsRequested: llmResult.itemsRequested,
+            validationResult,
+            rconResult,
+            ts: Date.now()
+          }
+        }
+      } catch (error) {
+        request.log.error(error, 'RCON execution failed with exception')
+
+        return reply.code(500).send({
+          success: false,
+          message: 'Failed to connect to Minecraft server. Please try again.',
+          commands: llmResult.commands,
+          itemsRequested: llmResult.itemsRequested,
+          validationResult,
+          error: error instanceof Error ? error.message : 'Unknown RCON error',
+          ts: Date.now()
+        })
+      }
+    }
+
+    // Return success response
+    const message = rconResult
+      ? llmResult.spokenResponse || `Commands executed successfully on Minecraft server`
+      : validationResult
+      ? llmResult.spokenResponse || validationResult.validItems.map(item => `${item.itemName} x${item.quantity}`).join(', ')
+      : llmResult.spokenResponse || llmResult.reasoning
+
     return {
       success: true,
-      message: validationResult
-        ? validationResult.validItems.map(item => `${item.itemName} x${item.quantity}`).join(', ')
-        : llmResult.reasoning,
+      message,
       commands: llmResult.commands,
       itemsRequested: llmResult.itemsRequested,
       validationResult,
-      dryRun: true,
+      rconResult,
+      dryRun: isDryRun,
       ts: Date.now()
     }
   } catch (error) {
