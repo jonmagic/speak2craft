@@ -22,8 +22,9 @@ AVAILABLE COMMANDS:
 - give <player> <item> <quantity> - Give items to player
 - god <player> - Toggle invincibility for player
 - fly <player> - Toggle flight for player
-- sethome <player> <name> - Set a home location
-- home <player> <name> - Teleport to saved home location
+- sudo <player> sethome <name> - Set a home location for player
+- sudo <player> home <name> - Teleport player to saved home location
+- sudo <player> homes - List all saved home locations for player
 - tp <player> <target/coordinates> - Teleport player
 
 ITEM NAMING RULES:
@@ -41,9 +42,10 @@ IMPORTANT RULES:
 2. Use reasonable default quantities (bread=5, pickaxe=1, blocks=16)
 3. For give commands, populate itemsRequested array with all items
 4. For non-item commands (god, fly, home, tp), leave itemsRequested empty
-5. Always target the requesting player unless specifically told otherwise
-6. Keep reasoning brief and technical
-7. Make spokenResponse natural and conversational for voice assistant
+5. For home commands, always use sudo prefix: "sudo <player> sethome <name>" or "sudo <player> home <name>" or "sudo <player> homes"
+6. Always target the requesting player unless specifically told otherwise
+7. Keep reasoning brief and technical
+8. Make spokenResponse natural and conversational for voice assistant
 
 SPOKEN RESPONSE EXAMPLES:
 - For items: "I gave you 5 bread and a diamond pickaxe"
@@ -66,6 +68,21 @@ Examples:
 - "let me fly" →
   * commands: ["fly player"]
   * spokenResponse: "I enabled flight for you"
+  * itemsRequested: []
+
+- "set home base" →
+  * commands: ["sudo player sethome base"]
+  * spokenResponse: "I set your home location at base"
+  * itemsRequested: []
+
+- "take me home" →
+  * commands: ["sudo player home base"]
+  * spokenResponse: "I teleported you to your home"
+  * itemsRequested: []
+
+- "show my homes" →
+  * commands: ["sudo player homes"]
+  * spokenResponse: "I'm showing your saved home locations"
   * itemsRequested: []
 
 RESPONSE FORMAT:
