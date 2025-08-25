@@ -189,7 +189,6 @@ Minecraft Server + In-game Feedback
 | **Abilities** | `god`, `fly` | _"Turn on god mode"_ |
 | **Teleport** | `tp` | _"Teleport to spawn"_ |
 | **Homes** | `sethome`, `home` | _"Set home base"_ |
-| **Messages** | `tellraw` | _Automatic confirmations_ |
 
 ## 📱 Voice Assistant Setup
 
