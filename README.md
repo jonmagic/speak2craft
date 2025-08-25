@@ -49,44 +49,31 @@ Control your Minecraft server using natural language voice commands through Siri
 "Turn off flight"                  → Ability disabled
 ```
 
-## 🚀 Quick Start
+## 🚀 Setup Guide
 
-### Docker Setup (Recommended)
+Getting Speak2Craft up and running is straightforward. Follow these steps to go from zero to voice-controlling your Minecraft server:
+
+### Step 1: Prepare Your Environment
+
+First, copy the environment template and open it for editing:
+
 ```bash
-# Copy environment template
+# Copy the template
 cp env.example .env
 
-# Edit with your server details
+# Edit with your details
 nano .env
-
-# Build and start
-docker-compose up -d
-
-# View real-time logs
-docker-compose logs -f speak2craft
 ```
 
-### Development Setup
+### Step 2: Configure Your Settings
+
+Fill out your `.env` file with the following essential settings:
+
 ```bash
-# Install dependencies
-pnpm install
-
-# Set up environment
-cp env.example .env
-nano .env
-
-# Start development server
-pnpm dev
-```
-
-## ⚙️ Configuration
-
-### Essential Settings (`.env`)
-```bash
-# Security
+# Security - Generate a strong random secret
 HMAC_SECRET=your_super_secret_key_here
 
-# AI Integration
+# AI Integration - Get from OpenAI dashboard
 OPENAI_API_KEY=sk-your-openai-key-here
 
 # Minecraft Server Connection
@@ -99,17 +86,51 @@ PLAYER_EISLEY=your_minecraft_username
 PLAYER_JON=another_player_name
 DEFAULT_PLAYER=fallback_username
 
-# Server Settings
+# Server Settings (defaults work for most setups)
 PORT=3000
 HOST=0.0.0.0
 LOG_LEVEL=info
 ```
 
-### Player Device Mapping
-Map your devices to Minecraft usernames:
-- `PLAYER_EISLEY=JonMagic` → Eisley's device controls JonMagic in-game
-- `PLAYER_MOM=SteveMiner` → Mom's phone controls SteveMiner
-- `DEFAULT_PLAYER=Admin` → Fallback for unmapped devices
+**Player mapping explained**: Each device that will send voice commands needs to be mapped to a Minecraft username. For example:
+- `PLAYER_EISLEY=.BabyBear1234` means when Eisley's device sends commands, they affect the JonMagic player in-game
+- `PLAYER_JON=jonmagic` means Mom's phone controls the SteveMiner player
+- `DEFAULT_PLAYER=jonmagic` is used when a device isn't specifically mapped
+
+### Step 3: Start the Server
+
+With your configuration ready, start Speak2Craft using Docker:
+
+```bash
+# Build and start in the background
+docker-compose up -d
+
+# Watch the logs to ensure everything is working
+docker-compose logs -f speak2craft
+```
+
+You should see logs indicating successful connection to your Minecraft server via RCON.
+
+### Step 4: Set Up Siri Shortcuts
+
+Now configure your voice assistant to send commands to Speak2Craft:
+
+<img width="2116" height="2790" alt="Siri Shortcut" src="https://github.com/user-attachments/assets/ba3f2ba0-ba04-470f-b903-d2938889ecca" />
+
+**For iOS Siri Shortcuts:**
+1. Create a new shortcut in the Shortcuts app
+2. Add "Get Contents of URL" action
+3. Set the URL to `http://your-server:3000/voice`
+4. Configure HMAC signature generation (see screenshot above)
+5. Add your preferred voice trigger phrase
+
+**For other voice assistants**, use similar webhook configurations with HMAC authentication support.
+
+### Step 5: Test Your Setup
+
+Try your first voice command! Say something like _"Give me bread"_ to your voice assistant. You should see the command appear in your server logs, and 5 bread items should appear in your Minecraft inventory with an in-game confirmation message.
+
+If something isn't working, check the troubleshooting section below for common solutions.
 
 ## 🔌 API Reference
 
