@@ -182,16 +182,7 @@ app.post('/voice', async (request, reply) => {
           errorMessages.push(`Sorry, '${invalidItem.itemName}' is not a valid Minecraft item${suggestions}`)
         }
 
-        // Send error feedback to game if not in dry-run mode
-        const errorFeedbackCommand = `tellraw ${targetPlayer} {"text":"✗ ${errorMessages.join('. ')}","color":"red"}`
 
-        try {
-          if (!isDryRun) {
-            await executeMinecraftCommands([errorFeedbackCommand])
-          }
-        } catch (error) {
-          request.log.warn(error, 'Failed to send error feedback to game')
-        }
 
         return {
           success: false,
@@ -199,7 +190,6 @@ app.post('/voice', async (request, reply) => {
           commands: llmResult.commands,
           itemsRequested: llmResult.itemsRequested,
           validationResult,
-          feedbackCommand: errorFeedbackCommand,
           ts: Date.now()
         }
       }
