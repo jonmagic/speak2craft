@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "ts-node src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "debug": "ts-node debug.ts"
   },
   "keywords": [
     "minecraft",
