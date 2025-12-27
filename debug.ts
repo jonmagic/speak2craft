@@ -2,7 +2,7 @@ import { config } from 'dotenv'
 import { checkRcon } from './src/debug/rconCheck'
 import { checkVoicePipeline } from './src/debug/voiceCheck'
 
-config()
+config({ override: true })
 
 async function main() {
   const [, , maybeCommandOrUtterance, maybeDeviceUser] = process.argv
